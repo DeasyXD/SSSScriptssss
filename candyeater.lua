@@ -78,8 +78,8 @@ if placeID == 127886236032517 and _G.MainF == true then
 
 	local GuiService = game:GetService('GuiService');
 	local VirtualInputManager = game:GetService('VirtualInputManager');
-	local button = game:GetService("Players").LocalPlayer.PlayerGui.bossInterface.TextButton
-	print(button.text)
+	local bt = game:GetService("Players").LocalPlayer.PlayerGui.bossInterface.TextButton
+
 	getgenv().firesignal = function(button)
 		if not button then return end;
 		GuiService.SelectedObject = button;
@@ -92,7 +92,7 @@ if placeID == 127886236032517 and _G.MainF == true then
 		GuiService.SelectedObject = nil;
 	end;
 
-	firesignal(button)
+	firesignal(bt)
 
 	--//========================
 	--// Candy Finder Function
