@@ -6,7 +6,6 @@ for _,v in pairs(game:GetService("Players").LocalPlayer.PlayerGui.bossInterface:
     if v.Name == "TextButton" then
         for i,sig in pairs(Signals) do
             firesignal(v[sig])
-            mouse1click(v)
         end
     end
 end
