@@ -2,23 +2,23 @@ wait(5)
 
 local placeID = game.PlaceId
 
---//================================================
---// -----------------------  BossPortal Finder
---//================================================
-if placeID == 121116694547285 then
-    local portal = workspace:FindFirstChild("BossPortal")
-    local prox = portal 
-        and portal:FindFirstChild("TeleportProximity") 
-        and portal.TeleportProximity:FindFirstChild("BossProximityPrompt")
-    if prox then
-        fireproximityprompt(prox)
-	else
-		fireproximityprompt(workspace.Containers.ShopContainer.Ticket.ProximityPrompt)
-		task.wait(2)
-		game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Remotes"):WaitForChild("InventoryRemotes"):WaitForChild("UseItem"):FireServer("Ticket")
-	end
-	return
-end
+-- //================================================
+-- // -----------------------  BossPortal Finder
+-- //================================================
+-- if placeID == 121116694547285 then
+--     local portal = workspace:FindFirstChild("BossPortal")
+--     local prox = portal 
+--         and portal:FindFirstChild("TeleportProximity") 
+--         and portal.TeleportProximity:FindFirstChild("BossProximityPrompt")
+--     if prox then
+--         fireproximityprompt(prox)
+-- 	else
+-- 		fireproximityprompt(workspace.Containers.ShopContainer.Ticket.ProximityPrompt)
+-- 		task.wait(2)
+-- 		game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Remotes"):WaitForChild("InventoryRemotes"):WaitForChild("UseItem"):FireServer("Ticket")
+-- 	end
+-- 	return
+-- end
 
 --//================================================
 --// -----------------------  ALL MAIN FUNCTIONS 
@@ -93,6 +93,10 @@ if placeID == 127886236032517 then
 			print("Candy collected:", candyCount)
 
 			hrp.CFrame = candy.CFrame + Vector3.new(0, 3, 0)
+		-- else
+		-- 	if not candy then
+		-- 		warn("No candy with the target color found.")
+		-- 	end
 		end
 	end
 
