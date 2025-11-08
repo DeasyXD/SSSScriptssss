@@ -2,29 +2,31 @@ wait(5)
 
 local placeID = game.PlaceId
 
+_G.AutoJoin = false -- เฮียต้องมี candy 500 อันก่อนนะ
+_G.MainF = true
 -- //================================================
 -- // -----------------------  BossPortal Finder
 -- //================================================
--- if placeID == 121116694547285 then
---     local portal = workspace:FindFirstChild("BossPortal")
---     local prox = portal 
---         and portal:FindFirstChild("TeleportProximity") 
---         and portal.TeleportProximity:FindFirstChild("BossProximityPrompt")
---     if prox then
---         fireproximityprompt(prox)
--- 	else
--- 		fireproximityprompt(workspace.Containers.ShopContainer.Ticket.ProximityPrompt)
--- 		task.wait(2)
--- 		game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Remotes"):WaitForChild("InventoryRemotes"):WaitForChild("UseItem"):FireServer("Ticket")
--- 	end
--- 	return
--- end
+if placeID == 121116694547285 and _G.AutoJoin == true then
+    local portal = workspace:FindFirstChild("BossPortal")
+    local prox = portal 
+        and portal:FindFirstChild("TeleportProximity") 
+        and portal.TeleportProximity:FindFirstChild("BossProximityPrompt")
+    if prox then
+        fireproximityprompt(prox)
+	else
+		fireproximityprompt(workspace.Containers.ShopContainer.Ticket.ProximityPrompt)
+		task.wait(2)
+		game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Remotes"):WaitForChild("InventoryRemotes"):WaitForChild("UseItem"):FireServer("Ticket")
+	end
+	return
+end
 
 --//================================================
 --// -----------------------  ALL MAIN FUNCTIONS 
 --//================================================
 
-if placeID == 127886236032517 then
+if placeID == 127886236032517 and _G.MainF == true then
 	--//========================
 	--// Variables
 	--//========================
