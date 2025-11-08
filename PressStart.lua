@@ -1,11 +1,17 @@
-local Signals = {"Activated", "MouseButton1Down","MouseButton1Up","MouseButton1Click", "MouseButton2Down", "MouseButton2Click"}
--- local button = game:GetService("Players").LocalPlayer.PlayerGui.bossInterface.TextButton
--- local hb = game:GetService("Players").LocalPlayer.PlayerGui.bossInterface.Hitbox
+local GuiService = game:GetService('GuiService');
+local VirtualInputManager = game:GetService('VirtualInputManager');
+local bt = game:GetService("Players").LocalPlayer.PlayerGui.bossInterface.TextButton
 
-for _,v in pairs(game:GetService("Players").LocalPlayer.PlayerGui.bossInterface:GetChildren()) do
-    if v.Name == "TextButton" then
-        for i,sig in pairs(Signals) do
-            firesignal(v[sig])
-        end
-    end
-end
+getgenv().firesignal = function(button)
+    if not button then return end;
+    GuiService.SelectedObject = button;
+
+    VirtualInputManager:SendKeyEvent(true, 'Return', false, game)
+    task.wait(.1);
+    VirtualInputManager:SendKeyEvent(false, 'Return', false, game)
+
+    task.wait(.5)
+    GuiService.SelectedObject = nil;
+end;
+
+firesignal(bt)
