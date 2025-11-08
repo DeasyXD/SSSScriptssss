@@ -2,8 +2,11 @@ wait(5)
 
 local placeID = game.PlaceId
 
-_G.AutoJoin = false -- เฮียต้องมี candy 500 อันก่อนนะ
+_G.AutoJoin = true -- เฮียต้องมี candy 500 อันก่อนนะ
 _G.MainF = true
+
+
+
 -- //================================================
 -- // -----------------------  BossPortal Finder
 -- //================================================
@@ -68,6 +71,28 @@ if placeID == 127886236032517 and _G.MainF == true then
 	local moveConn
 	-- ULT Detector
 	local founded = false
+	
+	--//========================
+	--// Auto Start Function
+	--//========================
+
+	local GuiService = game:GetService('GuiService');
+	local VirtualInputManager = game:GetService('VirtualInputManager');
+	local button = game:GetService("Players").LocalPlayer.PlayerGui.bossInterface.TextButton
+	print(button.text)
+	getgenv().firesignal = function(button)
+		if not button then return end;
+		GuiService.SelectedObject = button;
+
+		VirtualInputManager:SendKeyEvent(true, 'Return', false, game)
+		task.wait(.1);
+		VirtualInputManager:SendKeyEvent(false, 'Return', false, game)
+
+		task.wait(.5)
+		GuiService.SelectedObject = nil;
+	end;
+
+	firesignal(button)
 
 	--//========================
 	--// Candy Finder Function
