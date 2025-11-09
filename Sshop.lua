@@ -16,7 +16,7 @@ local PAGE_LIMIT = 3       -- จะดึงได้กี่หน้าก�
 local API_BASE = "https://games.roblox.com/v1/games/"
 
 local function fetchServerPage(cursor)
-    local url = API_BASE .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100"
+    local url = API_BASE .. PlaceID .. "/servers/Public?sortOrder=Desc&limit=100"
     if cursor and cursor ~= "" then
         url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
     end
