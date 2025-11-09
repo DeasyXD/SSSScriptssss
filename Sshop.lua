@@ -1,159 +1,112 @@
--- Config
-local PlaceID = tostring(game.PlaceId)
-local RECENT_FILE = "NotSameServers.json"
-local MAX_RECENT = 5             -- เก็บล่าสุดกี่เซิร์ฟ
-local MAX_PAGES = 5              -- ดึงกี่หน้าก่อนยอมแพ้
+-- Server Hopper: hop ไปเรื่อยๆ แบบสุ่ม (อนุญาตให้ซ้ำ)
+-- ใช้ใน executor/สภาพแวดล้อมที่อนุญาต HttpGet (หรือใน Client ที่เปิดให้ใช้)
+-- ปรับค่าได้: HOP_DELAY (วินาที) และ MAX_PAGES (ดึงกี่หน้า)
+
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 
--- load recent list (as strings)
-local recent = {}
-local ok, data = pcall(function()
-    return readfile(RECENT_FILE)
-end)
-if ok and data then
-    local suc, decoded = pcall(function() return HttpService:JSONDecode(data) end)
-    if suc and type(decoded) == "table" then
-        for _, v in ipairs(decoded) do
-            table.insert(recent, tostring(v))
-        end
-    end
-end
+local PlaceID = tostring(game.PlaceId)
+local CurrentJobId = tostring(game.JobId)
 
--- ensure recent is a table
-if type(recent) ~= "table" then recent = {} end
+-- config
+_G.StopServerHopper = _G.StopServerHopper or false
+local HOP_DELAY = 4        -- รอหลัง teleport ก่อนวนใหม่ (วินาที) (ลด/เพิ่มได้)
+local PAGE_LIMIT = 3       -- จะดึงได้กี่หน้าก่อนยอมแพ้ (แต่ละหน้า up to 100 servers)
+local API_BASE = "https://games.roblox.com/v1/games/"
 
--- helper: check in recent
-local function isRecent(id)
-    id = tostring(id)
-    for _, v in ipairs(recent) do
-        if tostring(v) == id then return true end
+local function fetchServerPage(cursor)
+    local url = API_BASE .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100"
+    if cursor and cursor ~= "" then
+        url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
     end
-    return false
-end
-
--- helper: push into recent (rolling)
-local function pushRecent(id)
-    id = tostring(id)
-    table.insert(recent, 1, id) -- insert front
-    -- trim
-    while #recent > MAX_RECENT do
-        table.remove(recent)
-    end
-    -- save
-    pcall(function()
-        writefile(RECENT_FILE, HttpService:JSONEncode(recent))
+    local ok, res = pcall(function()
+        return game:HttpGet(url)
     end)
+    if not ok or not res then
+        return nil
+    end
+    local suc, tbl = pcall(function() return HttpService:JSONDecode(res) end)
+    if not suc or type(tbl) ~= "table" then
+        return nil
+    end
+    return tbl
 end
 
--- main: find candidate servers not in recent and with space
-local function findCandidateServer()
+local function gatherAvailableServers()
+    local servers = {}
     local cursor = nil
     local pages = 0
-    local candidates = {}
 
-    while pages < MAX_PAGES do
-        pages = pages + 1
-        local url = "https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100"
-        if cursor then
-            url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
-        end
+    while pages < PAGE_LIMIT do
+        if _G.StopServerHopper then break end
+        local tbl = fetchServerPage(cursor)
+        if not tbl then break end
 
-        local ok, res = pcall(function() return game:HttpGet(url) end)
-        if not ok or not res then
-            break
-        end
-
-        local suc, tbl = pcall(function() return HttpService:JSONDecode(res) end)
-        if not suc or type(tbl) ~= "table" or type(tbl.data) ~= "table" then
-            break
-        end
-
-        -- iterate servers
-        for _, v in ipairs(tbl.data) do
-            if type(v) == "table" then
-                local id = tostring(v.id)
-                local playing = tonumber(v.playing) or 0
-                local maxP = tonumber(v.maxPlayers) or 0
-                -- available and not in recent and not current server
-                if maxP > playing and (not isRecent(id)) and id ~= tostring(game.JobId) then
-                    table.insert(candidates, id)
+        -- เก็บเซิร์ฟที่มีที่ว่างและไม่ใช่เซิร์ฟปัจจุบัน
+        if type(tbl.data) == "table" then
+            for _, v in ipairs(tbl.data) do
+                if type(v) == "table" then
+                    local id = tostring(v.id)
+                    local playing = tonumber(v.playing) or 0
+                    local maxP = tonumber(v.maxPlayers) or 0
+                    if maxP > playing and id ~= CurrentJobId then
+                        table.insert(servers, id)
+                    end
                 end
             end
         end
 
-        -- if we found candidates, stop early
-        if #candidates > 0 then break end
-
-        -- move to next page if exists
+        -- next page?
         if tbl.nextPageCursor and tbl.nextPageCursor ~= "" and tbl.nextPageCursor ~= "null" then
             cursor = tbl.nextPageCursor
+            pages = pages + 1
         else
             break
         end
     end
 
-    -- if no candidates found, as fallback take any server (not current) from the last page scanned
-    if #candidates == 0 then
-        -- try to take any server from last fetched page that isn't recent or current (relaxed: ignore recent)
-        -- make a fresh try: get page 1
-        local ok2, res2 = pcall(function()
-            return game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100")
-        end)
-        if ok2 and res2 then
-            local suc2, tbl2 = pcall(function() return HttpService:JSONDecode(res2) end)
-            if suc2 and type(tbl2) == "table" and type(tbl2.data) == "table" then
-                for _, v in ipairs(tbl2.data) do
-                    local id = tostring(v.id)
-                    local playing = tonumber(v.playing) or 0
-                    local maxP = tonumber(v.maxPlayers) or 0
-                    if maxP > playing and id ~= tostring(game.JobId) then
-                        table.insert(candidates, id)
-                    end
-                end
+    return servers
+end
+
+local function pickAndTeleport(servers)
+    if not servers or #servers == 0 then
+        return false, "no servers found"
+    end
+    math.randomseed(tick() + os.time())
+    local pick = servers[math.random(1, #servers)]
+    local ok, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(tonumber(PlaceID), pick, Players.LocalPlayer)
+    end)
+    if ok then
+        return true
+    else
+        return false, err
+    end
+end
+
+-- main loop: จะทำงานไปเรื่อย ๆ จน _G.StopServerHopper = true
+spawn(function()
+    while not _G.StopServerHopper do
+        -- ดึง candidate servers
+        local servers = gatherAvailableServers()
+
+        -- ถ้าไม่เจอ ให้รอแล้วลองใหม่ช้าๆ
+        if #servers == 0 then
+            warn("[Hopper] No servers found, retry after delay")
+            task.wait(math.max(HOP_DELAY, 5))
+        else
+            local ok, err = pickAndTeleport(servers)
+            if not ok then
+                warn("[Hopper] Teleport failed:", err)
+                -- รอแล้วลองต่อ
+                task.wait(math.max(HOP_DELAY, 3))
+            else
+                -- ถ้า teleport สำเร็จ โปรเซสจะเปลี่ยนเซสชันไปแล้ว (รันโค้ดที่เหลืออาจไม่ทัน)
+                -- แต่ถ้า teleport ไม่เกิด (เช่นพยายามแต่โดนบล็อก), เราจะรอแล้ววนต่อ
+                task.wait(HOP_DELAY)
             end
         end
     end
-
-    -- return random candidate or nil
-    if #candidates > 0 then
-        math.randomseed(tick() + os.time())
-        return candidates[math.random(1, #candidates)]
-    end
-    return nil
-end
-
--- Teleport logic (single attempt)
-local function tryTeleportToNewServer()
-    local serverId = findCandidateServer()
-    if not serverId then
-        warn("ไม่พบเซิร์ฟเวอร์ที่เหมาะสม (หรือ error เยอะ) ยกเลิกการเทเลพอร์ตครั้งนี้")
-        return false
-    end
-
-    -- register it to recent first (so re-run won't pick same immediately)
-    pushRecent(serverId)
-
-    -- attempt teleport
-    local ok, err = pcall(function()
-        TeleportService:TeleportToPlaceInstance(tonumber(PlaceID), serverId, Players.LocalPlayer)
-    end)
-    if not ok then
-        warn("Teleport failed:", err)
-        return false
-    end
-    return true
-end
-
--- Example usage: loop trying every X seconds until teleport success
-spawn(function()
-    while task.wait(2) do
-        local success = pcall(tryTeleportToNewServer)
-        if success then
-            break
-        end
-        -- wait a bit before retrying to avoid hammering API
-        task.wait(3)
-    end
+    print("[Hopper] Stopped by _G.StopServerHopper flag")
 end)
