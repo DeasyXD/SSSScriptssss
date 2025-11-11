@@ -1,17 +1,15 @@
--- FAST HOPPER: ultra-minimal, ultra-fast, no history, no page-loop
--- Hop ASAP ไปเรื่อยๆ (ซ้ำเซิร์ฟได้) โดยใช้ API หน้าเดียวที่เร็วที่สุด
-
+-- FAST HOPPER: stable version with auto-retry
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game.Players
 
 local PLACE_ID = game.PlaceId
-local HOP_DELAY = 2         -- ปรับเวลาหน่วงระหว่าง hop
-_G.StopFastHop = false       -- ถ้าอยากหยุด: _G.StopFastHop = true
+local HOP_DELAY = 3
+_G.StopFastHop = false
 
 local function fastFetch()
-    -- เราใช้จุดนี้เพียงครั้งเดียวต่อหนึ่ง hop
-    local url = "https://games.roblox.com/v1/games/" .. PLACE_ID .. "/servers/Public?sortOrder=Desc&limit=100"
+    local url =
+        "https://games.roblox.com/v1/games/" .. PLACE_ID .. "/servers/Public?sortOrder=Desc&limit=100"
 
     local ok, res = pcall(function()
         return game:HttpGet(url)
@@ -21,18 +19,26 @@ local function fastFetch()
     local ok2, data = pcall(function()
         return HttpService:JSONDecode(res)
     end)
-    if not ok2 or type(data) ~= "table" then return nil end
+    if not ok2 then return nil end
 
     return data.data
 end
 
 local function getFastServer()
     local list = fastFetch()
-    if not list then return nil end
+
+    -- ✅ ถ้า API คืนว่าง → รอแล้ว retry แทนที่จะล้ม
+    if not list or #list == 0 then
+        warn("[FAST HOPPER] Empty list, retrying...")
+        task.wait(0.5)
+        return nil
+    end
 
     for _, v in ipairs(list) do
-        if tonumber(v.playing) < tonumber(v.maxPlayers) and tostring(v.id) ~= tostring(game.JobId) then
-            return v.id   -- หยิบตัวแรกที่ว่าง แล้วจบ ไม่ต้องวนหนัก
+        if tonumber(v.playing) < tonumber(v.maxPlayers)
+            and tostring(v.id) ~= tostring(game.JobId)
+        then
+            return v.id
         end
     end
 
@@ -42,12 +48,14 @@ end
 local function hopNow()
     local server = getFastServer()
     if server then
-        print("[FAST HOPPER] Teleporting to:", server)
+        print("[FAST HOPPER] Teleport:", server)
         pcall(function()
-            TeleportService:TeleportToPlaceInstance(PLACE_ID, server, Players.LocalPlayer)
+            TeleportService:TeleportToPlaceInstance(
+                PLACE_ID, server, Players.LocalPlayer
+            )
         end)
     else
-        warn("[FAST HOPPER] No server found this cycle")
+        print("[FAST HOPPER] No server found this cycle. Retrying...")
     end
 end
 
@@ -58,4 +66,4 @@ task.spawn(function()
     end
 end)
 
-print("✅ FAST HOPPER ENABLED (Stop with: _G.StopFastHop = true)")
+print("✅ STABLE FAST HOPPER ACTIVE")
